@@ -1,0 +1,21 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: Omer-hadad-s-Projects/workflows/.github/workflows/docker-image-builder.yaml@master 
+    with:
+      image_name: thetemani/wake-on-lan-api
+      default_branch: master                    
+      changelog_path: CHANGELOG.md             
+      docker_context: .                       
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
