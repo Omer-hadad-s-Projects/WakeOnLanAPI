@@ -7,6 +7,17 @@ WAKE_ON_LAN_SHELL_PATH = './shells/wake_on_lan.sh'
 TIMEOUT = '30'
 PORT = os.getenv('APP_PORT', 5000)
 
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint to verify the API is running."""
+    return jsonify({
+        "status": "healthy",
+        "service": "WakeOnLanAPI",
+        "timestamp": subprocess.run(['date', '-u', '+%Y-%m-%dT%H:%M:%SZ'],
+                                    capture_output=True, text=True).stdout.strip()
+    }), 200
+
 @app.route('/wake', methods=['POST'])
 def wake_device():
     data = request.get_json()
