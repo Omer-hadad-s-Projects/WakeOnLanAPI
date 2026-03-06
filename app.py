@@ -1,11 +1,28 @@
 from flask import Flask, request, jsonify
+from wakeonlan import send_magic_packet
+from datetime import datetime, timezone
 import subprocess
+import time
 import os
 
 app = Flask(__name__)
-WAKE_ON_LAN_SHELL_PATH = './shells/wake_on_lan.sh'
-TIMEOUT = '30'
+TIMEOUT = 30
+PING_RETRIES = 5
 PORT = os.getenv('APP_PORT', 5000)
+
+
+def is_device_online(ip_address):
+    """Check if a device is reachable via ping."""
+    try:
+        result = subprocess.run(
+            ['ping', '-c', str(PING_RETRIES), ip_address],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=10
+        )
+        return result.returncode == 0
+    except subprocess.TimeoutExpired:
+        return False
 
 
 @app.route('/health', methods=['GET'])
@@ -14,34 +31,46 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "service": "WakeOnLanAPI",
-        "timestamp": subprocess.run(['date', '-u', '+%Y-%m-%dT%H:%M:%SZ'],
-                                    capture_output=True, text=True).stdout.strip()
+        "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     }), 200
 
 @app.route('/wake', methods=['POST'])
 def wake_device():
+    """Send WOL packet and wait for device to come online."""
     data = request.get_json()
     mac_address = data.get('mac_address')
     ip_address = data.get('ip_address')
 
     if not mac_address or not ip_address:
-        return jsonify({"error": "Both mac_address and target_ip are required."}), 400
+        return jsonify({"error": "Both mac_address and ip_address are required."}), 400
+
+    logs = []
 
     try:
-        result = subprocess.run(
-            [WAKE_ON_LAN_SHELL_PATH, mac_address, ip_address, TIMEOUT],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        output = result.stdout.decode('utf-8')
-        log_array = output.split('\n')
-        log_array = [line for line in log_array if line]
+        send_magic_packet(mac_address)
+        logs.append(f"WOL packet sent to {mac_address} (target: {ip_address})")
 
-        exit_code = result.returncode
+        start_time = time.time()
 
-        return jsonify({"output": log_array, "exit_code": exit_code}), 200
+        while time.time() - start_time < TIMEOUT:
+            if is_device_online(ip_address):
+                elapsed = int(time.time() - start_time)
+                logs.append(f"{ip_address} is now online!")
+                logs.append(f"Time taken: {elapsed} seconds")
+                return jsonify({"output": logs, "exit_code": 0, "online": True}), 200
+
+            elapsed = int(time.time() - start_time)
+            logs.append(f"{ip_address} is still offline (elapsed: {elapsed}s)")
+            time.sleep(1)
+
+        # Timeout reached
+        logs.append(
+            f"Timeout reached after {TIMEOUT} seconds. {ip_address} is still offline.")
+        return jsonify({"output": logs, "exit_code": 1, "online": False}), 200
+
     except Exception as e:
-        error_message = f'Error {str(e)}'
-        return error_message, 500
+        logs.append(f"Error: {str(e)}")
+        return jsonify({"error": str(e), "output": logs}), 500
 
 
 if __name__ == '__main__':
