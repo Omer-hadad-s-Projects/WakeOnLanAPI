@@ -61,3 +61,37 @@ curl -X POST http://localhost:5000/wake \
      -H "Content-Type: application/json" \
      -d '{"mac_address": "00:11:22:33:44:55", "ip_address": "192.168.0.14"}'
 ```
+
+## Wake Response Format
+
+The `POST /wake` endpoint returns a compact result instead of step-by-step logs.
+
+### Success Response
+
+```json
+{
+  "result": "success",
+  "duration_seconds": 4
+}
+```
+
+### Timeout Response
+
+Timeout remains an HTTP `200` because the request completed successfully and the timeout is the wake attempt outcome.
+
+```json
+{
+  "result": "Timeout",
+  "duration_seconds": 30
+}
+```
+
+### Error Response
+
+```json
+{
+  "result": "error",
+  "duration_seconds": 0,
+  "error": "..."
+}
+```

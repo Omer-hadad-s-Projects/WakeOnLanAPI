@@ -44,33 +44,33 @@ def wake_device():
     if not mac_address or not ip_address:
         return jsonify({"error": "Both mac_address and ip_address are required."}), 400
 
-    logs = []
+    start_time = time.time()
 
     try:
         send_magic_packet(mac_address)
-        logs.append(f"WOL packet sent to {mac_address} (target: {ip_address})")
-
-        start_time = time.time()
 
         while time.time() - start_time < TIMEOUT:
             if is_device_online(ip_address):
                 elapsed = int(time.time() - start_time)
-                logs.append(f"{ip_address} is now online!")
-                logs.append(f"Time taken: {elapsed} seconds")
-                return jsonify({"output": logs, "exit_code": 0, "online": True}), 200
+                return jsonify({
+                    "result": "success",
+                    "duration_seconds": elapsed
+                }), 200
 
-            elapsed = int(time.time() - start_time)
-            logs.append(f"{ip_address} is still offline (elapsed: {elapsed}s)")
             time.sleep(1)
 
-        # Timeout reached
-        logs.append(
-            f"Timeout reached after {TIMEOUT} seconds. {ip_address} is still offline.")
-        return jsonify({"output": logs, "exit_code": 1, "online": False}), 200
+        return jsonify({
+            "result": "Timeout",
+            "duration_seconds": TIMEOUT
+        }), 200
 
     except Exception as e:
-        logs.append(f"Error: {str(e)}")
-        return jsonify({"error": str(e), "output": logs}), 500
+        elapsed = int(time.time() - start_time)
+        return jsonify({
+            "result": "error",
+            "duration_seconds": elapsed,
+            "error": str(e)
+        }), 500
 
 
 if __name__ == '__main__':
