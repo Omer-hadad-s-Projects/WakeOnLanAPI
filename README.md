@@ -48,9 +48,12 @@ Send a POST request to wake the device.
 ```
 {
   "mac_address": "<device_mac_address>",
-  "ip_address": "<device_ip>"
+  "ip_address": "<device_ip>",
+  "timeout_seconds": 30
 }
 ```
+
+`timeout_seconds` is optional. If omitted, the API uses `30` seconds. Values above `60` are capped at `60`.
 
 ## Example
 
@@ -59,7 +62,7 @@ Here’s an example of how to send a request using `curl`:
 ```
 curl -X POST http://localhost:5000/wake \
      -H "Content-Type: application/json" \
-     -d '{"mac_address": "00:11:22:33:44:55", "ip_address": "192.168.0.14"}'
+     -d '{"mac_address": "00:11:22:33:44:55", "ip_address": "192.168.0.14", "timeout_seconds": 30}'
 ```
 
 ## Wake Response Format
@@ -77,11 +80,11 @@ The `POST /wake` endpoint returns a compact result instead of step-by-step logs.
 
 ### Timeout Response
 
-Timeout remains an HTTP `200` because the request completed successfully and the timeout is the wake attempt outcome.
+Timeout returns HTTP `503` and the timeout value is capped at `60` seconds.
 
 ```json
 {
-  "result": "Timeout",
+  "result": "timeout",
   "duration_seconds": 30
 }
 ```
