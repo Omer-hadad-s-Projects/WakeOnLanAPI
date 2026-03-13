@@ -60,9 +60,9 @@ def wake_device():
             time.sleep(1)
 
         return jsonify({
-            "result": "Timeout",
+            "result": "timeout",
             "duration_seconds": TIMEOUT
-        }), 200
+        }), 504
 
     except Exception as e:
         elapsed = int(time.time() - start_time)
